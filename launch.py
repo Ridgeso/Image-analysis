@@ -1,11 +1,13 @@
 from typing import Callable
-
 from pathlib import Path
 
 import tkinter as tk
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import numpy as np
+
+from dataProcesing import Data, Model
+
 
 class RoadSignGuesser:
     SCREEN_WIDTH = 1080
@@ -14,8 +16,56 @@ class RoadSignGuesser:
     FOREGROUND_COLOR = "#63768D"
     BUTTONS_COLOR = "#8AC6D0"
     FONT_COLOR = "#FFFFFF"
+    RoadSignsTransations = {
+        0: 'Ograniczenie prędkości (20 km/h)',
+        1: 'Ograniczenie prędkości (30 km/h)',
+        2: 'Ograniczenie prędkości (50 km/h)',
+        3: 'Ograniczenie prędkości (60 km/h)',
+        4: 'Ograniczenie prędkości (70 km/h)',
+        5: 'Ograniczenie prędkości (80 km/h)',
+        6: 'Koniec ograniczenia prędkości (80 km/h)',
+        7: 'Ograniczenie prędkości (100 km/h)',
+        8: 'Ograniczenie prędkości (120 km/h)',
+        9: 'Zakaz wyprzedzania',
+        10: 'Zakaz wyprzedzania pojazdów o masie powyżej 3,5 tony',
+        11: 'Pierwszeństwo na skrzyżowaniu',
+        12: 'Droga z pierwszeństwem',
+        13: 'Ustąp pierwszeństwa',
+        14: 'Stop',
+        15: 'Zakaz ruchu',
+        16: 'Zakaz ruchu pojazdów o masie powyżej 3,5 tony',
+        17: 'Zakaz wjazdu',
+        18: 'Niebezpieczeństwo',
+        19: 'Ostry zakręt w lewo',
+        20: 'Ostry zakręt w prawo',
+        21: 'Ostre zakręty',
+        22: 'Wyboje',
+        23: 'Śliska jezdnia',
+        24: 'Zwężenie z prawej strony',
+        25: 'Roboty drogowe',
+        26: 'Sygnalizacja świetlna',
+        27: 'Piesi',
+        28: 'Przejście dla dzieci',
+        29: 'Przejście dla rowerzystów',
+        30: 'Uwaga na gołoledź',
+        31: 'Uwaga dzikie zwierzęta',
+        32: 'Koniec zakazów',
+        33: 'Nakaz skrętu w prawo',
+        34: 'Nakaz skrętu w lewo',
+        35: 'Nakaz jazdy prosto',
+        36: 'Nakaz jazdy prosto lub w prawo',
+        37: 'Nakaz jazdy prosto lub w lewo',
+        38: 'Nakaz jazdy z prawej strony znaku',
+        39: 'Nakaz jazdy z lewej strony znaku',
+        40: 'Skrzyżowanie o ruchu okrężnym',
+        41: 'Koniec zakazu wyprzedzania',
+        42: 'Koniec zakazu wyprzedzania pojazdów o masie powyżej 3,5 tony'
+    }
 
     def __init__(self) -> None:
+        self.model = Model()
+        self.model.loadModel(Data.DataShape)
+
         self.root = tk.Tk()
         self.root.title("Rozpoznaj Znak")
         self.root.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
@@ -144,21 +194,24 @@ class RoadSignGuesser:
             self.SetImagePhotoLabel(self.signOryPhoto)
 
     def GuessSign(self) -> None:
-        if self.signPhoto is not None:
-            self.resultLabel.config(text="Zgaduj dalej")
+        if hasattr(self, "photoLabel"):
+            predictedIndex = self.model.predict(self.signPhoto)
+            predictedSign = self.RoadSignsTransations[predictedIndex]
+            self.resultLabel.config(text=f"Znak rozpoznany jako: {predictedSign}")
         else:
             self.resultLabel.config(text="Wybierz najpierw zdjęcie")
 
     def SetImagePhotoLabel(self, image: Image) -> None:
-        self.signPhoto = ImageTk.PhotoImage(image)
-        self.imageLabel.config(image=self.signPhoto)
+        self.signPhoto = image
+        self.photoLabel = ImageTk.PhotoImage(self.signPhoto)
+        self.imageLabel.config(image=self.photoLabel)
 
     def Run(self) -> None:
         self.root.mainloop()
 
     @staticmethod
     def _GetImage(iamgePath: Path) -> Image:
-        image = Image.open(iamgePath)
+        image = Image.open(iamgePath).convert('RGB')
         width, height = image.size
 
         targetWidth = RoadSignGuesser.SCREEN_WIDTH * 0.6
@@ -178,7 +231,7 @@ class RoadSignGuesser:
         
         return image
     
-    def _OnSliderChange(self, event: tk.Event=None) -> None:
+    def _OnSliderChange(self, sliderValue: float) -> None:
         self.kontrastNumber.config(text=f'{self.kontrastSlider.get():0.2f}')
         self.gammaNumber.config(text=f'{self.gammaSlider.get():0.2f}')
     
